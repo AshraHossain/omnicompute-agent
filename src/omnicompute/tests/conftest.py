@@ -7,13 +7,16 @@ fixtures shared across the anomaly detection test suites.
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
+import yaml
 
 from omnicompute.telemetry.parser import TelemetryParser
 from omnicompute.telemetry.schemas import Telemetry
 from omnicompute.anomaly.baseline import BaselineCache
+from omnicompute.anomaly.schemas import Anomaly
+from omnicompute.response.schemas import Action
 
 
 @pytest.fixture
@@ -383,3 +386,497 @@ def triager_no_baseline(baseline_cache_empty, node_config_sat01):
     return AnomalyTriager(
         baseline_cache=baseline_cache_empty, node_config=node_config_sat01
     )
+
+
+# ---------------------------------------------------------------------------
+# Anomaly fixtures (response planner / HITL queue suites)
+# ---------------------------------------------------------------------------
+
+
+def _anomaly(
+    node_id: str = "Sat-01",
+    metric_name: str = "battery_soc_percent",
+    current_value: float = 14.2,
+    baseline_mean: float = 65.0,
+    baseline_stddev: float = 8.0,
+    z_score: float = -6.35,
+    severity: str = "CRITICAL",
+    confidence: float = 0.90,
+    timestamp: datetime = None,
+) -> Anomaly:
+    """Helper: build an Anomaly with sensible CRITICAL-battery defaults."""
+    return Anomaly(
+        node_id=node_id,
+        metric_name=metric_name,
+        current_value=current_value,
+        baseline_mean=baseline_mean,
+        baseline_stddev=baseline_stddev,
+        z_score=z_score,
+        severity=severity,
+        confidence=confidence,
+        timestamp=timestamp or datetime(2026, 6, 19, 20, 10, 0, tzinfo=timezone.utc),
+    )
+
+
+@pytest.fixture
+def anomaly_critical_battery() -> Anomaly:
+    """CRITICAL battery anomaly (z-score > 3) for Sat-01."""
+    return _anomaly(
+        metric_name="battery_soc_percent",
+        current_value=14.2,
+        baseline_mean=65.0,
+        baseline_stddev=8.0,
+        z_score=-6.35,
+        severity="CRITICAL",
+        confidence=0.90,
+    )
+
+
+@pytest.fixture
+def anomaly_warning_thermal() -> Anomaly:
+    """WARNING thermal anomaly (2 < z-score <= 3) for Sat-01."""
+    return _anomaly(
+        metric_name="thermal_temp_celsius",
+        current_value=47.5,
+        baseline_mean=35.0,
+        baseline_stddev=5.0,
+        z_score=2.5,
+        severity="WARNING",
+        confidence=0.75,
+    )
+
+
+@pytest.fixture
+def anomaly_nominal_metric() -> Anomaly:
+    """NOMINAL metric anomaly result (no action should be generated)."""
+    return _anomaly(
+        metric_name="rf_signal_strength_dbm",
+        current_value=-75.0,
+        baseline_mean=-75.0,
+        baseline_stddev=8.5,
+        z_score=0.0,
+        severity="NOMINAL",
+        confidence=0.60,
+    )
+
+
+@pytest.fixture
+def anomaly_unknown_type() -> Anomaly:
+    """Anomaly whose metric_name has no corresponding playbook (fallback path)."""
+    return _anomaly(
+        metric_name="micrometeorite_impact_count",
+        current_value=3.0,
+        baseline_mean=0.0,
+        baseline_stddev=0.5,
+        z_score=6.0,
+        severity="CRITICAL",
+        confidence=0.80,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Playbook fixtures (response planner suite)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def playbook_power_anomaly_dict() -> dict:
+    """Raw dict matching the expected power_anomaly.yaml schema."""
+    return {
+        "name": "power_anomaly",
+        "anomaly_type": "battery_soc_percent",
+        "triggers": [
+            {"metric": "battery_soc_percent", "severity": "CRITICAL"},
+        ],
+        "actions": [
+            {
+                "action_type": "load_shed",
+                "params": {"target_watts": 6.0, "exclude": []},
+                "reversible": True,
+                "reversibility_window_seconds": 1800,
+                "estimated_impact": "reduce_power_draw_by_3w",
+                "min_confidence": 0.6,
+            },
+            {
+                "action_type": "reduce_beacon",
+                "params": {"interval_seconds": 60},
+                "reversible": True,
+                "reversibility_window_seconds": 900,
+                "estimated_impact": "reduce_power_draw_by_0.5w",
+                "min_confidence": 0.6,
+            },
+        ],
+        "modifiers": [
+            {
+                "when": "solar_degradation > 20",
+                "effect": "exclude_action_param",
+                "target_action": "load_shed",
+                "exclude": "rf_backup",
+            },
+            {
+                "when": "eclipse",
+                "effect": "aggressive_load_shed",
+            },
+        ],
+    }
+
+
+@pytest.fixture
+def playbook_thermal_violation_dict() -> dict:
+    """Raw dict matching the expected thermal_violation.yaml schema."""
+    return {
+        "name": "thermal_violation",
+        "anomaly_type": "thermal_temp_celsius",
+        "triggers": [
+            {"metric": "thermal_temp_celsius", "severity": "WARNING"},
+            {"metric": "thermal_temp_celsius", "severity": "CRITICAL"},
+        ],
+        "actions": [
+            {
+                "action_type": "reduce_compute_load",
+                "params": {"target_percent": 50},
+                "reversible": True,
+                "reversibility_window_seconds": 1200,
+                "estimated_impact": "reduce_heat_generation",
+                "min_confidence": 0.6,
+            },
+        ],
+        "modifiers": [],
+    }
+
+
+@pytest.fixture
+def playbook_rf_jamming_dict() -> dict:
+    """Raw dict matching the expected rf_jamming.yaml schema (irreversible action)."""
+    return {
+        "name": "rf_jamming",
+        "anomaly_type": "rf_signal_strength_dbm",
+        "triggers": [
+            {"metric": "rf_signal_strength_dbm", "severity": "CRITICAL"},
+        ],
+        "actions": [
+            {
+                "action_type": "switch_to_backup_antenna",
+                "params": {},
+                "reversible": False,
+                "reversibility_window_seconds": None,
+                "estimated_impact": "restore_rf_link",
+                "min_confidence": 0.9,
+            },
+        ],
+        "modifiers": [],
+    }
+
+
+@pytest.fixture
+def playbooks_dir(tmp_path, playbook_power_anomaly_dict, playbook_thermal_violation_dict, playbook_rf_jamming_dict):
+    """Directory on disk containing sample playbook YAML files.
+
+    Mirrors the expected layout of /playbooks/*.yaml: one YAML file per
+    anomaly type, loaded by ResponsePlanner at construction time.
+    """
+    directory = tmp_path / "playbooks"
+    directory.mkdir()
+
+    (directory / "power_anomaly.yaml").write_text(
+        yaml.safe_dump(playbook_power_anomaly_dict)
+    )
+    (directory / "thermal_violation.yaml").write_text(
+        yaml.safe_dump(playbook_thermal_violation_dict)
+    )
+    (directory / "rf_jamming.yaml").write_text(
+        yaml.safe_dump(playbook_rf_jamming_dict)
+    )
+
+    return directory
+
+
+@pytest.fixture
+def playbooks_dir_with_malformed_file(playbooks_dir):
+    """playbooks_dir plus one malformed YAML file that should be skipped/logged,
+    not crash the loader.
+    """
+    malformed = playbooks_dir / "broken.yaml"
+    malformed.write_text("name: broken\n  bad_indent: [unterminated")
+    return playbooks_dir
+
+
+@pytest.fixture
+def playbooks_dir_empty(tmp_path):
+    """Empty playbooks directory (no YAML files at all)."""
+    directory = tmp_path / "playbooks_empty"
+    directory.mkdir()
+    return directory
+
+
+# ---------------------------------------------------------------------------
+# Action fixtures (response planner / HITL queue suites)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def action_load_shed() -> Action:
+    """Load shedding action: reversible, high confidence -> autonomous execution."""
+    return Action(
+        node_id="Sat-01",
+        action_type="load_shed",
+        params={"target_watts": 6.0},
+        rationale="battery_soc_percent CRITICAL; shed load to extend runtime",
+        reversible=True,
+        reversibility_window_seconds=1800,
+        estimated_impact="reduce_power_draw_by_3w",
+        confidence=0.85,
+        min_confidence_for_autonomous=0.75,
+        source_anomaly_metric="battery_soc_percent",
+        playbook_name="power_anomaly",
+    )
+
+
+@pytest.fixture
+def action_irreversible_throttle() -> Action:
+    """Compute throttle action: irreversible, low confidence -> HITL escalation."""
+    return Action(
+        node_id="Sat-01",
+        action_type="compute_throttle",
+        params={"target_percent": 40},
+        rationale="thermal_temp_celsius CRITICAL; throttle compute to reduce heat",
+        reversible=False,
+        reversibility_window_seconds=None,
+        estimated_impact="reduce_heat_generation",
+        confidence=0.55,
+        min_confidence_for_autonomous=0.75,
+        source_anomaly_metric="thermal_temp_celsius",
+        playbook_name="thermal_violation",
+    )
+
+
+@pytest.fixture
+def action_reversible_low_confidence() -> Action:
+    """Reversible action with confidence below the autonomous-execution floor."""
+    return Action(
+        node_id="Sat-01",
+        action_type="reduce_beacon",
+        params={"interval_seconds": 60},
+        rationale="marginal signal; reduce beacon frequency as a precaution",
+        reversible=True,
+        reversibility_window_seconds=900,
+        estimated_impact="reduce_power_draw_by_0.5w",
+        confidence=0.5,
+        min_confidence_for_autonomous=0.75,
+        source_anomaly_metric="rf_signal_strength_dbm",
+        playbook_name="rf_jamming",
+    )
+
+
+@pytest.fixture
+def action_irreversible_high_confidence() -> Action:
+    """Irreversible action with high confidence -> still escalated (reversible=False rule)."""
+    return Action(
+        node_id="Sat-01",
+        action_type="switch_to_backup_antenna",
+        params={},
+        rationale="RF jamming detected; switch to backup antenna",
+        reversible=False,
+        reversibility_window_seconds=None,
+        estimated_impact="restore_rf_link",
+        confidence=0.95,
+        min_confidence_for_autonomous=0.75,
+        source_anomaly_metric="rf_signal_strength_dbm",
+        playbook_name="rf_jamming",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Node config with power budget (response planner suite)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def node_config_with_power_budget() -> dict:
+    """Sat-01 config including power_budget_watts, for action budget checks."""
+    return {
+        "Sat-01": {
+            "node_type": "leo_satellite",
+            "contact_window_minutes": 8,
+            "power_budget_watts": 15,
+            "safe_ranges": {
+                "battery_soc_percent": [20, 100],
+                "thermal_temp_celsius": [0, 85],
+                "rf_signal_strength_dbm": [-120, -30],
+            },
+        },
+    }
+
+
+@pytest.fixture
+def node_config_no_power_budget() -> dict:
+    """Sat-01 config without power_budget_watts (graceful degradation)."""
+    return {
+        "Sat-01": {
+            "node_type": "leo_satellite",
+            "contact_window_minutes": 8,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# ResponsePlanner fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def planner_with_playbooks(baseline_cache_normal, node_config_with_power_budget, playbooks_dir):
+    """ResponsePlanner constructed with all sample playbooks loaded from disk."""
+    from omnicompute.response.planner import ResponsePlanner
+
+    return ResponsePlanner(
+        baseline_cache=baseline_cache_normal,
+        node_config=node_config_with_power_budget,
+        playbooks_dir=str(playbooks_dir),
+    )
+
+
+@pytest.fixture
+def planner_no_playbooks(baseline_cache_normal, node_config_with_power_budget, playbooks_dir_empty):
+    """ResponsePlanner with no playbooks loaded (pure fallback mode)."""
+    from omnicompute.response.planner import ResponsePlanner
+
+    return ResponsePlanner(
+        baseline_cache=baseline_cache_normal,
+        node_config=node_config_with_power_budget,
+        playbooks_dir=str(playbooks_dir_empty),
+    )
+
+
+@pytest.fixture
+def planner_no_node_config(baseline_cache_normal, playbooks_dir):
+    """ResponsePlanner with no node_config supplied (graceful degradation)."""
+    from omnicompute.response.planner import ResponsePlanner
+
+    return ResponsePlanner(
+        baseline_cache=baseline_cache_normal,
+        node_config=None,
+        playbooks_dir=str(playbooks_dir),
+    )
+
+
+# ---------------------------------------------------------------------------
+# HumanReviewQueue fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def hitl_queue_path(tmp_path):
+    """Path to a fresh (non-existent) hitl_review.json for a clean queue."""
+    return tmp_path / "queue" / "hitl_review.json"
+
+
+@pytest.fixture
+def queue_empty(hitl_queue_path):
+    """Empty HumanReviewQueue backed by a fresh, non-existent JSON file."""
+    from omnicompute.queue.hitl import HumanReviewQueue
+
+    return HumanReviewQueue(queue_path=str(hitl_queue_path))
+
+
+def _queue_item_kwargs(
+    action_id: str = "act-0001",
+    recommended_action: str = "compute_throttle",
+    risk_level: str = "CRITICAL",
+    confidence: float = 0.55,
+    reversible: bool = False,
+    queued_at_utc: datetime = None,
+    timeout_utc: datetime = None,
+    timeout_action: str = "escalate_to_critical",
+    status: str = "PENDING",
+) -> dict:
+    """Helper: build kwargs for a QueueItem with deterministic timestamps."""
+    queued_at = queued_at_utc or datetime(2026, 6, 19, 20, 10, 0, tzinfo=timezone.utc)
+    timeout_at = timeout_utc or (queued_at + timedelta(hours=3))
+    return dict(
+        action_id=action_id,
+        recommended_action=recommended_action,
+        action_params={"target_percent": 40},
+        risk_level=risk_level,
+        supporting_evidence=[
+            {
+                "metric_name": "battery_soc_percent",
+                "z_score": -6.35,
+                "baseline_mean": 65.0,
+            }
+        ],
+        confidence=confidence,
+        reversible=reversible,
+        queued_at_utc=queued_at,
+        timeout_utc=timeout_at,
+        timeout_action=timeout_action,
+        status=status,
+        ground_response=None,
+    )
+
+
+@pytest.fixture
+def queue_item_pending_not_expired():
+    """QueueItem whose timeout_utc is in the future relative to the fixed 'now'."""
+    from omnicompute.queue.schemas import QueueItem
+
+    now = datetime(2026, 6, 19, 21, 0, 0, tzinfo=timezone.utc)
+    kwargs = _queue_item_kwargs(
+        action_id="act-pending",
+        queued_at_utc=now - timedelta(minutes=10),
+        timeout_utc=now + timedelta(hours=2),
+    )
+    return QueueItem(**kwargs)
+
+
+@pytest.fixture
+def queue_item_expired_irreversible():
+    """QueueItem past its timeout_utc, irreversible action -> execute_with_log."""
+    from omnicompute.queue.schemas import QueueItem
+
+    now = datetime(2026, 6, 19, 23, 30, 0, tzinfo=timezone.utc)
+    kwargs = _queue_item_kwargs(
+        action_id="act-expired-irreversible",
+        reversible=False,
+        timeout_action="execute_with_log",
+        queued_at_utc=now - timedelta(hours=4),
+        timeout_utc=now - timedelta(hours=1),
+    )
+    return QueueItem(**kwargs)
+
+
+@pytest.fixture
+def queue_item_expired_low_confidence():
+    """QueueItem past its timeout_utc, low confidence -> escalate_to_critical."""
+    from omnicompute.queue.schemas import QueueItem
+
+    now = datetime(2026, 6, 19, 23, 30, 0, tzinfo=timezone.utc)
+    kwargs = _queue_item_kwargs(
+        action_id="act-expired-low-confidence",
+        reversible=True,
+        confidence=0.4,
+        risk_level="WARNING",
+        timeout_action="escalate_to_critical",
+        queued_at_utc=now - timedelta(hours=4),
+        timeout_utc=now - timedelta(hours=1),
+    )
+    return QueueItem(**kwargs)
+
+
+@pytest.fixture
+def queue_with_items(hitl_queue_path):
+    """HumanReviewQueue pre-populated with 3 items of varying risk levels."""
+    from omnicompute.queue.hitl import HumanReviewQueue
+    from omnicompute.queue.schemas import QueueItem
+
+    queue = HumanReviewQueue(queue_path=str(hitl_queue_path))
+
+    items = [
+        QueueItem(**_queue_item_kwargs(action_id="act-info", risk_level="INFO", confidence=0.6, reversible=True)),
+        QueueItem(**_queue_item_kwargs(action_id="act-warning", risk_level="WARNING", confidence=0.5, reversible=True)),
+        QueueItem(**_queue_item_kwargs(action_id="act-critical", risk_level="CRITICAL", confidence=0.55, reversible=False)),
+    ]
+    for item in items:
+        queue._items.append(item)  # direct seed; persistence exercised separately
+
+    return queue

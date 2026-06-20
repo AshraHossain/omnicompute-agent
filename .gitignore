@@ -53,5 +53,5 @@ ehthumbs.db
 # Data (not checked in, can be symlinked)
 data/
 logs/
-queue/
+queue/*.json
 output/
