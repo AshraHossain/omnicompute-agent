@@ -1,0 +1,171 @@
+# OmniCompute Node Configuration Example
+#
+# This file defines the federated node inventory, hardware capabilities,
+# safe operating ranges, and playbook assignments.
+#
+# Copy this file to nodes.yaml and customize for your deployment.
+
+# LEO Satellites
+satellites:
+  - id: Sat-01
+    node_type: leo_satellite
+    contact_window_minutes: 8
+    contact_cycle_minutes: 94
+    power_budget_watts: 15
+    ram_gb: 2
+
+    # Operating range constraints (violations trigger CRITICAL severity)
+    safe_ranges:
+      battery_soc_percent: [10, 100]
+      thermal_temp_celsius: [-50, 85]
+      rf_signal_strength_dbm: [-120, -30]
+      uplink_queue_bytes: [0, 500000]
+
+    # Response playbooks assigned to this node
+    playbooks:
+      - power_anomaly
+      - thermal_violation
+      - rf_jamming
+
+  - id: Sat-02
+    node_type: leo_satellite
+    contact_window_minutes: 8
+    contact_cycle_minutes: 94
+    power_budget_watts: 15
+    ram_gb: 2
+
+    safe_ranges:
+      battery_soc_percent: [10, 100]
+      thermal_temp_celsius: [-50, 85]
+      rf_signal_strength_dbm: [-120, -30]
+
+    playbooks:
+      - power_anomaly
+      - thermal_violation
+      - rf_jamming
+
+  - id: Sat-03
+    node_type: leo_satellite
+    contact_window_minutes: 8
+    contact_cycle_minutes: 94
+    power_budget_watts: 15
+    ram_gb: 2
+
+    safe_ranges:
+      battery_soc_percent: [10, 100]
+      thermal_temp_celsius: [-50, 85]
+      rf_signal_strength_dbm: [-120, -30]
+
+    playbooks:
+      - power_anomaly
+      - thermal_violation
+      - rf_jamming
+
+# Forward-Deployed Ground Nodes
+ground_nodes:
+  - id: FGN-Alpha
+    node_type: forward_ground_node
+    contact_window_minutes: 30  # Longer contact windows than satellites
+    power_budget_watts: 50
+    ram_gb: 8
+
+    # ITAR compliance flag (route through classified networks)
+    classified: true
+
+    safe_ranges:
+      thermal_temp_celsius: [-30, 50]
+      rf_signal_strength_dbm: [-110, -20]
+      compute_load_percent: [0, 100]
+      disk_usage_percent: [0, 90]
+
+    playbooks:
+      - thermal_violation
+      - rf_jamming
+      - compute_overload
+
+  - id: FGN-Bravo
+    node_type: forward_ground_node
+    contact_window_minutes: 30
+    power_budget_watts: 50
+    ram_gb: 8
+    classified: false  # Can route through unclassified networks
+
+    safe_ranges:
+      thermal_temp_celsius: [-30, 50]
+      rf_signal_strength_dbm: [-110, -20]
+      compute_load_percent: [0, 100]
+
+    playbooks:
+      - thermal_violation
+      - compute_overload
+
+  - id: FGN-Charlie
+    node_type: forward_ground_node
+    contact_window_minutes: 30
+    power_budget_watts: 50
+    ram_gb: 8
+    classified: true
+
+    safe_ranges:
+      thermal_temp_celsius: [-30, 50]
+      rf_signal_strength_dbm: [-110, -20]
+
+    playbooks:
+      - thermal_violation
+      - rf_jamming
+
+# Mission Control Hub (MCH)
+mission_control:
+  - id: MCH-Primary
+    node_type: mission_control_hub
+    contact_window_minutes: 1440  # Always connected
+    power_budget_watts: 500
+    ram_gb: 64
+
+    # MCH role: orchestrator, doesn't have safe ranges
+    role: orchestrator
+
+    # Directory containing response playbooks
+    playbooks_directory: /config/playbooks/
+
+    # Baseline statistics update frequency
+    baseline_update_frequency_hours: 24
+
+    # Archive old data
+    data_retention_days: 90
+
+---
+
+# Notes on Configuration
+
+## Node Types
+- **leo_satellite**: Low-earth orbit satellite, intermittent connectivity
+- **forward_ground_node**: Ruggedized ground station, more reliable
+- **mission_control_hub**: Always-connected orchestrator
+
+## Safe Ranges
+- Violations trigger CRITICAL severity anomalies
+- Customize based on your hardware specifications
+- Add metrics that matter to your infrastructure
+
+## Playbooks
+- Assign playbooks to nodes that can execute them
+- Playbooks live in config/playbooks/
+- Create new playbooks by adding YAML files
+
+## ITAR Classification
+- Set `classified: true` for nodes on restricted networks
+- OmniCompute will isolate these nodes from unclassified data routes
+- Encryption is required for classified deployments
+
+## Power Budget
+- Measured in watts, allocated per node
+- Total action power consumption cannot exceed budget
+- Actions execute in priority order until budget exhausted
+- Unused budget carries forward to next contact window (within reason)
+
+## Contact Windows
+- Satellite contact cycles typical: 90-120 minutes
+- Contact windows: 5-12 minutes per orbit
+- Ground nodes: more predictable, longer windows
+- MCH: always connected (1440 = 24 hours)

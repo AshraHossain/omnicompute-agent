@@ -58,3 +58,6 @@ output/
 
 # Build artifacts
 graphify-out/
+
+# Development notes (local session history)
+Notes.md

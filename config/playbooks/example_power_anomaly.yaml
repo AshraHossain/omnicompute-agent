@@ -1,0 +1,137 @@
+# Example Playbook: Power Anomaly Response
+#
+# This playbook defines responses to battery/power system anomalies.
+# Copy this as a template for your own playbooks.
+
+name: power_anomaly
+description: Respond to battery SOC and power draw anomalies
+
+# What anomaly type triggers this playbook
+anomaly_type: battery_soc_percent
+
+# Trigger conditions (metric name + severity)
+triggers:
+  - metric: battery_soc_percent
+    severity: CRITICAL
+    min_z_score: 3.0  # Trigger only on severe deviations
+
+  - metric: battery_soc_percent
+    severity: WARNING
+    min_z_score: 2.0  # Less severe, can be overridden
+
+  - metric: power_draw_watts
+    severity: CRITICAL
+    max_z_score: -3.0  # Negative z-score = power draw too high
+
+# Response actions (in priority order)
+actions:
+  # Action 1: Reduce non-critical load
+  - action_type: load_shed
+    description: Shed low-priority RF backup and logging
+    params:
+      target_watts: 6.0  # Reduce power draw to 6W
+      exclude: []
+    reversible: true
+    min_confidence: 0.6  # Execute if confidence >= 60%
+    power_cost_watts: 0.5  # Action itself costs 0.5W
+    max_duration_seconds: 3600  # 1 hour max
+
+  # Action 2: Increase solar charging (if available)
+  - action_type: maximize_solar
+    description: Increase solar array angle for max output
+    params:
+      target_angle_degrees: 45
+      exclude: []
+    reversible: true
+    min_confidence: 0.7
+    power_cost_watts: 0.2
+    max_duration_seconds: 7200  # 2 hours max
+
+  # Action 3: Alert ground (irreversible, escalates if low confidence)
+  - action_type: alert_ground
+    description: Notify MCH-Primary of critical battery condition
+    params:
+      priority: CRITICAL
+      contact_required: true
+    reversible: false
+    min_confidence: 0.5  # Low confidence → escalate to human
+    power_cost_watts: 0  # Sending alert is essential
+
+# Conditional modifiers (context-based adjustments)
+modifiers:
+  # During eclipse: more aggressive load shedding
+  - when: eclipse
+    effect: aggressive_load_shed
+    description: >
+      During eclipse, solar array is inactive. Be more aggressive
+      with load shedding to preserve battery until sunlight returns.
+    target_action: load_shed
+    multiplier: 1.5  # 50% more aggressive (e.g., 6W → 9W target)
+
+  # High solar degradation: skip maximize_solar action
+  - when: "solar_degradation > 20"
+    effect: exclude_action
+    description: >
+      If solar panels are degraded >20%, don't try to maximize output.
+      Degradation indicates panels are failing; extra angle adjustment
+      won't help and wastes power.
+    target_action: maximize_solar
+
+  # Very low battery: skip reversible actions
+  - when: "battery_soc_percent < 5"
+    effect: irreversible_only
+    description: >
+      At < 5% SOC, battery could die any moment. Only execute
+      irreversible actions (alert) to ensure notification reaches MCH.
+    target_action: load_shed
+
+# Success criteria (when to stop executing actions)
+success_criteria:
+  - battery_soc_percent > 15  # Battery recovers above 15%
+  - time_elapsed_minutes > 30  # Stop after 30 min regardless
+  - all_actions_executed: true  # Tried everything available
+
+# Failure mode (if success criteria not met)
+fallback_action: escalate_to_human
+fallback_description: >
+  If battery doesn't recover after 30 minutes of load shedding,
+  escalate to human operator at MCH-Primary. This is a serious
+  condition that may require manual intervention.
+
+# Testing & validation
+test_cases:
+  - description: "Simulate critical low-battery during sun"
+    node_id: "Sat-01"
+    battery_soc_percent: 8.0  # Critical low
+    eclipse: false
+    solar_degradation: 5.0
+    expected_actions: ["load_shed", "alert_ground"]
+    expected_confidence: 0.75
+
+  - description: "Simulate critical battery during eclipse"
+    node_id: "Sat-02"
+    battery_soc_percent: 12.0
+    eclipse: true
+    solar_degradation: 0.0
+    expected_actions: ["load_shed (aggressive)", "alert_ground"]
+    expected_confidence: 0.85
+
+# Contacts for playbook ownership
+owner: Satellite Power Team
+owner_email: power-team@example.com
+last_updated: "2026-06-20"
+version: "1.0.0"
+
+# Notes for operators
+notes: |
+  This playbook assumes:
+  - Solar array can be mechanically adjusted (not all satellites)
+  - Load shedding is reversible via ground command
+  - Battery degradation is monitored separately
+
+  For satellites without mechanical solar adjustment, remove
+  the maximize_solar action and rely solely on load_shed.
+
+  If battery degradation is not monitored, you may want to add
+  a check: if battery_soc_percent is dropping despite load_shed,
+  battery itself may be failing → escalate immediately.
