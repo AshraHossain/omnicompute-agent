@@ -55,3 +55,6 @@ data/
 logs/
 queue/*.json
 output/
+
+# Build artifacts
+graphify-out/
