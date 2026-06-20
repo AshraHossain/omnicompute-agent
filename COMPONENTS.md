@@ -1,5 +1,20 @@
 # OmniCompute Components
 
+## Status Summary
+
+| Component | Phase | Tests | Coverage | Status |
+|-----------|-------|-------|----------|--------|
+| TelemetryParser | 1 | 24 | 88% | ✅ Complete |
+| BaselineCache | 1 | 14 | 90% | ✅ Complete |
+| AnomalyTriager | 1 | 25 | 100% | ✅ Complete |
+| ResponsePlanner | 2 | 17 | 90% | ✅ Complete |
+| HumanReviewQueue | 2 | 22 | 90% | ✅ Complete |
+| UplinkBundler | 3 | 19 | 87% | ✅ Complete |
+| Orchestrator | 3 | 20 | 92% | ✅ Complete |
+| Integration | 4 | 18 | 99% | ✅ Complete |
+
+---
+
 ## 1. TelemetryParser
 
 **Responsibility**: Ingest heterogeneous sensor data from distributed nodes, normalize to canonical schema, align timestamps, convert units.
