@@ -369,7 +369,8 @@ rsync -av config/ sat-01:/edge/agent/config/
 - 💬 **Questions**: [GitHub Discussions](https://github.com/AshraHossain/omnicompute-agent/discussions)
 - 📧 **Contact**: ashrafuzzmanhossain@gmail.com
 
-**Documentation:**
+**Documentation (23 comprehensive guides):**
+- 🚀 [QUICK_REFERENCE.md](QUICK_REFERENCE.md) — One-pager for operators
 - 📖 [ARCHITECTURE.md](ARCHITECTURE.md) — System design and philosophy
 - 🏗️ [COMPONENTS.md](COMPONENTS.md) — Component contracts and interfaces
 - 📊 [DATA_SCHEMAS.md](DATA_SCHEMAS.md) — Pydantic data models
@@ -378,6 +379,17 @@ rsync -av config/ sat-01:/edge/agent/config/
 - 💻 [DEVELOPMENT.md](DEVELOPMENT.md) — Local development setup
 - 🔒 [SECURITY.md](SECURITY.md) — Security policy and compliance
 - 📋 [CONTRIBUTING.md](CONTRIBUTING.md) — Contribution guidelines
+- ❓ [FAQ.md](FAQ.md) — 30+ Common questions and answers
+- 🔧 [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — Operational issues and solutions
+- 📋 [OPERATIONS.md](OPERATIONS.md) — Daily procedures and incident response
+- ✅ [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) — Pre-flight verification
+- 📚 [GLOSSARY.md](GLOSSARY.md) — Technical terminology
+- 💰 [COST_ANALYSIS.md](COST_ANALYSIS.md) — Power budget and ROI analysis
+- 📈 [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) — Visual system design
+- 🔄 [CHANGELOG.md](CHANGELOG.md) — Version history
+- 🛣️ [ROADMAP.md](ROADMAP.md) — Future phases and features
+- ⚙️ [GITHUB_SETUP_GUIDE.md](GITHUB_SETUP_GUIDE.md) — Community setup procedures
+- 🧠 [CLAUDEMDIDEA.md](CLAUDEMDIDEA.md) *(local)* — CLAUDE.md template for future projects
 
 ## Code of Conduct
 
