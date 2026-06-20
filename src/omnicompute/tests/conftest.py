@@ -880,3 +880,23 @@ def queue_with_items(hitl_queue_path):
         queue._items.append(item)  # direct seed; persistence exercised separately
 
     return queue
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: UplinkBundler and Pipeline fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def encryption_key() -> str:
+    """Fernet encryption key for testing uplink bundles."""
+    from cryptography.fernet import Fernet
+    return Fernet.generate_key().decode()
+
+
+@pytest.fixture
+def queue_empty(tmp_path):
+    """Empty HumanReviewQueue for testing."""
+    from omnicompute.queue.hitl import HumanReviewQueue
+    queue_path = tmp_path / "hitl_queue.json"
+    return HumanReviewQueue(queue_path=str(queue_path))
