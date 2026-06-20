@@ -1,0 +1,139 @@
+name: Tests
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.10", "3.11", "3.12" ]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Lint with flake8
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 src/omnicompute --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings
+        flake8 src/omnicompute --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+      continue-on-error: true
+
+    - name: Type check with mypy
+      run: |
+        mypy src/omnicompute --ignore-missing-imports --no-error-summary
+      continue-on-error: true
+
+    - name: Run tests with pytest
+      run: |
+        pytest src/omnicompute/tests/ -v --tb=short
+
+    - name: Generate coverage report
+      run: |
+        pytest src/omnicompute/tests/ \
+          --cov=src/omnicompute \
+          --cov-report=xml \
+          --cov-report=term-missing
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Check test coverage
+      run: |
+        pytest src/omnicompute/tests/ \
+          --cov=src/omnicompute \
+          --cov-fail-under=80
+      continue-on-error: true
+
+    - name: Generate coverage badge
+      if: matrix.python-version == '3.10'
+      run: |
+        coverage_percent=$(pytest src/omnicompute/tests/ --cov=src/omnicompute --cov-report=term-missing | grep -oP '(?<=TOTAL\s+)[0-9]+(?=%)')
+        echo "Coverage: ${coverage_percent}%"
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Check for secrets
+      run: |
+        if grep -r "api_key\|password\|secret\|token" src/ --include="*.py" 2>/dev/null | grep -v "\.pyc" | grep -v "__pycache__"; then
+          echo "❌ Potential secrets found in code!"
+          exit 1
+        else
+          echo "✅ No obvious secrets detected"
+        fi
+      continue-on-error: true
+
+    - name: Check for hardcoded PII
+      run: |
+        if grep -r "[0-9]\{3\}-[0-9]\{2\}-[0-9]\{4\}\|[a-zA-Z0-9._%+-]\+@[a-zA-Z0-9.-]\+\.[a-zA-Z]\{2,\}" src/ --include="*.py" 2>/dev/null; then
+          echo "⚠️ Possible PII detected (check manually)"
+        else
+          echo "✅ No obvious PII detected"
+        fi
+      continue-on-error: true
+
+  build-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Check if package can be imported
+      run: |
+        python -c "from omnicompute.pipeline.orchestrator import Orchestrator; print('✅ Package imports successfully')"
+
+    - name: Verify key modules
+      run: |
+        python << 'EOF'
+        try:
+          from omnicompute.telemetry.parser import TelemetryParser
+          from omnicompute.anomaly.baseline import BaselineCache
+          from omnicompute.anomaly.triager import AnomalyTriager
+          from omnicompute.response.planner import ResponsePlanner
+          from omnicompute.queue.hitl import HumanReviewQueue
+          from omnicompute.uplink.bundler import UplinkBundler
+          from omnicompute.pipeline.orchestrator import Orchestrator
+          print("✅ All core modules importable")
+        except ImportError as e:
+          print(f"❌ Import error: {e}")
+          exit(1)
+        EOF

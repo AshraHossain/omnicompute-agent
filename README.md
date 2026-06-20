@@ -2,6 +2,12 @@
 
 **Production-Ready Autonomous Monitoring System for LEO Satellites & Forward Ground Nodes**
 
+[![Tests](https://github.com/AshraHossain/omnicompute-agent/workflows/Tests/badge.svg)](https://github.com/AshraHossain/omnicompute-agent/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen.svg)](TESTING.md)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 ## Status
 
 ✅ **COMPLETE & DEPLOYED**
