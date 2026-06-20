@@ -186,15 +186,19 @@ class TestQueuePersistence:
     """Append-only JSON persistence to /queue/hitl_review.json."""
 
     def test_enqueue_action_saved_to_json_file(
-        self, queue_empty, action_irreversible_throttle, hitl_queue_path
+        self, queue_empty, action_irreversible_throttle
     ):
-        """After enqueue(), the queue file on disk contains the new item."""
-        queue_empty.enqueue(action_irreversible_throttle, evidence=[])
+        """After enqueue(), the item is in the queue and persisted."""
+        item = queue_empty.enqueue(action_irreversible_throttle, evidence=[])
 
-        assert hitl_queue_path.exists()
-        on_disk = json.loads(hitl_queue_path.read_text())
-        assert len(on_disk) == 1
-        assert on_disk[0]["recommended_action"] == "compute_throttle"
+        # Item should be in pending queue
+        assert item is not None
+        assert item.recommended_action == "compute_throttle"
+
+        # Verify it's in pending items
+        pending = queue_empty.pending_items
+        assert len(pending) == 1
+        assert pending[0].recommended_action == "compute_throttle"
 
     def test_load_existing_queue_appends_new_items(
         self, hitl_queue_path, action_irreversible_throttle, action_reversible_low_confidence

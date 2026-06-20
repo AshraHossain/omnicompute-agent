@@ -121,6 +121,7 @@ class TestErrorRecovery:
         triager = AnomalyTriager(baseline_cache_empty, {})
         telemetry = Telemetry(
             node_id="Sat-01",
+            received_at=datetime.now(timezone.utc),
             timestamp=datetime.now(timezone.utc),
             metrics={"unknown_metric": 50.0},
         )
