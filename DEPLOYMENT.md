@@ -4,6 +4,18 @@
 
 This guide covers deploying OmniCompute to LEO satellites and forward-deployed ground nodes.
 
+## Quick Navigation
+
+📖 **Documentation**:
+- [README.md](README.md) — Project overview
+- [ARCHITECTURE.md](ARCHITECTURE.md) — System design
+- [COMPONENTS.md](COMPONENTS.md) — Component contracts
+- [DATA_SCHEMAS.md](DATA_SCHEMAS.md) — Data model specifications
+- [TESTING.md](TESTING.md) — Test suite details
+- [DEVELOPMENT.md](DEVELOPMENT.md) — Development setup
+- [SECURITY.md](SECURITY.md) — Security and compliance
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Contribution guidelines
+
 ## Pre-Deployment Checklist
 
 Before deploying to production satellites:

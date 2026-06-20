@@ -360,16 +360,34 @@ rsync -av config/ sat-01:/edge/agent/config/
 - **Encryption Key Management**: Keys managed externally (pre-deployed)
 - **Offline Learning**: Baselines updated only during contact windows
 
-## Support
+## Support & Contributing
 
-For issues, questions, or contributions:
-- GitHub Issues: https://github.com/anthropics/omnicompute-agent/issues
-- Documentation: See ARCHITECTURE.md, COMPONENTS.md, DATA_SCHEMAS.md
+**Want to contribute?** See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and workflow.
+
+**For issues, questions, or discussions:**
+- 🐛 **Bug reports**: [GitHub Issues](https://github.com/AshraHossain/omnicompute-agent/issues)
+- 💬 **Questions**: [GitHub Discussions](https://github.com/AshraHossain/omnicompute-agent/discussions)
+- 📧 **Contact**: ashrafuzzmanhossain@gmail.com
+
+**Documentation:**
+- 📖 [ARCHITECTURE.md](ARCHITECTURE.md) — System design and philosophy
+- 🏗️ [COMPONENTS.md](COMPONENTS.md) — Component contracts and interfaces
+- 📊 [DATA_SCHEMAS.md](DATA_SCHEMAS.md) — Pydantic data models
+- 🧪 [TESTING.md](TESTING.md) — Test suite and coverage details
+- 🚀 [DEPLOYMENT.md](DEPLOYMENT.md) — Satellite and ground node deployment
+- 💻 [DEVELOPMENT.md](DEVELOPMENT.md) — Local development setup
+- 🔒 [SECURITY.md](SECURITY.md) — Security policy and compliance
+- 📋 [CONTRIBUTING.md](CONTRIBUTING.md) — Contribution guidelines
+
+## Code of Conduct
+
+This project follows a [Code of Conduct](CODE_OF_CONDUCT.md). Please be respectful and inclusive.
 
 ## License
 
-Proprietary — OmniCompute Agent
-© 2026 Anthropic. All rights reserved.
+[MIT License](LICENSE) — © 2026 Ashraf Hossain
+
+Free to use, modify, and distribute with attribution.
 
 ## Changelog
 

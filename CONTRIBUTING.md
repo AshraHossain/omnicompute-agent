@@ -2,6 +2,18 @@
 
 Thank you for your interest in contributing to the OmniCompute Federated Infrastructure Agent! This document provides guidelines and instructions for contributing.
 
+## Quick Navigation
+
+📖 **Documentation**:
+- [README.md](README.md) — Project overview
+- [ARCHITECTURE.md](ARCHITECTURE.md) — System design
+- [COMPONENTS.md](COMPONENTS.md) — Component contracts
+- [DATA_SCHEMAS.md](DATA_SCHEMAS.md) — Data model specifications
+- [TESTING.md](TESTING.md) — Test suite details
+- [DEPLOYMENT.md](DEPLOYMENT.md) — Deployment guide
+- [DEVELOPMENT.md](DEVELOPMENT.md) — Development setup
+- [SECURITY.md](SECURITY.md) — Security and compliance
+
 ## Code of Conduct
 
 Please be respectful, inclusive, and professional in all interactions.

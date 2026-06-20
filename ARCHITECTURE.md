@@ -12,6 +12,17 @@ OmniCompute is a federated infrastructure monitoring and response system designe
 
 The system operates autonomously during ground blackout periods, triaging anomalies and executing playbook-driven responses without continuous connectivity.
 
+## Documentation Map
+
+📖 **Start here**: [README.md](README.md) — Project overview and features
+- 🏗️ [COMPONENTS.md](COMPONENTS.md) — Component contracts and interfaces
+- 📊 [DATA_SCHEMAS.md](DATA_SCHEMAS.md) — Pydantic data model specifications
+- 🧪 [TESTING.md](TESTING.md) — Test suite breakdown and coverage details
+- 🚀 [DEPLOYMENT.md](DEPLOYMENT.md) — Satellite and ground node deployment guide
+- 💻 [DEVELOPMENT.md](DEVELOPMENT.md) — Local development setup and workflow
+- 🔒 [SECURITY.md](SECURITY.md) — Security policy, compliance, vulnerability reporting
+- 📋 [CONTRIBUTING.md](CONTRIBUTING.md) — Contribution guidelines and TDD workflow
+
 ## Design Philosophy
 
 - **Eventual Consistency**: Nodes may be offline; design for asynchronous state sync

@@ -2,6 +2,18 @@
 
 **Final Status**: ✅ All tests passing (155/155), 97% coverage
 
+## Quick Navigation
+
+📖 **Documentation**:
+- [README.md](README.md) — Project overview
+- [ARCHITECTURE.md](ARCHITECTURE.md) — System design
+- [COMPONENTS.md](COMPONENTS.md) — Component contracts
+- [DATA_SCHEMAS.md](DATA_SCHEMAS.md) — Data model specifications
+- [DEPLOYMENT.md](DEPLOYMENT.md) — Deployment guide
+- [DEVELOPMENT.md](DEVELOPMENT.md) — Development setup
+- [SECURITY.md](SECURITY.md) — Security and compliance
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Contribution guidelines
+
 ## Test Overview
 
 The OmniCompute project uses **pytest** with comprehensive test-driven development (TDD) methodology across all 4 implementation phases.
